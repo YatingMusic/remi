@@ -1,0 +1,10 @@
+__pycache__/
+.vscode/
+.ipynb_checkpoints/
+.DS_Store
+miditoolkit.egg-info/
+@eaDir
+*.pyc
+*.pypirc
+Thumbs.db
+*.gz
