@@ -1,7 +1,7 @@
 # REMI
 Authors: [Yu-Siang Huang](https://remyhuang.github.io/), [Wen-Yi Hsiao](https://github.com/wayne391/) and [Yi-Hsuan Yang](http://mac.citi.sinica.edu.tw/~yang/)
 
-REMI, which stands for `REvamped MIDI-derved events`, is a new event representation we propose for converting MIDI scores into text-like descrete tokens.  Compared to the MIDI-like event representation adopted in exising Transformer-based music composition models, REMI provides sequence models a metrical context for modeling the rhythmic patterns of music.  Using REMI as the event representation, we train a Transformer-XL model to generate minute-long Pop piano music with expressive, coherent and clear structure of rhythm and harmony, without needingany post-processing to refine the result.  The model also provides controllability of local tempo changes and chord progression.
+REMI, which stands for `REvamped MIDI-derved events`, is a new event representation we propose for converting MIDI scores into text-like discrete tokens.  Compared to the MIDI-like event representation adopted in exising Transformer-based music composition models, REMI provides sequence models a metrical context for modeling the rhythmic patterns of music. Using REMI as the event representation, we train a Transformer-XL model to generate minute-long Pop piano music with expressive, coherent and clear structure of rhythm and harmony, without needing any post-processing to refine the result. The model also provides controllability of local tempo changes and chord progression.
 
 ## Citation
 ```
