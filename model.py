@@ -80,7 +80,7 @@ class PopMusicTransformer(object):
     ########################################
     # temperature sampling
     ########################################
-    def temperature_sampling(self, logits, temperature, topk=5):
+    def temperature_sampling(self, logits, temperature, topk):
         probs = np.exp(logits / temperature) / np.sum(np.exp(logits / temperature))
         if topk == 1:
             prediction = np.argmax(probs)
@@ -113,7 +113,7 @@ class PopMusicTransformer(object):
     ########################################
     # generate
     ########################################
-    def generate(self, n_target_bar, temperature, output_path, prompt=None):
+    def generate(self, n_target_bar, temperature, topk, output_path, prompt=None):
         # if prompt, load it. Or, random start
         if prompt:
             events = self.extract_events(prompt)
@@ -167,7 +167,8 @@ class PopMusicTransformer(object):
             _logit = _logits[-1, 0]
             word = self.temperature_sampling(
                 logits=_logit, 
-                temperature=temperature)
+                temperature=temperature, 
+                topk=topk)
             words[0].append(word)
             # if bar event (only work for batch_size=1)
             if word == self.event2word['Bar_None']:
