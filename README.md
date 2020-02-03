@@ -17,7 +17,7 @@ REMI, which stands for `REvamped MIDI-derived events`, is a new event representa
 ### Install Dependencies
 * python 3.6 (recommend using [Anaconda](https://www.anaconda.com/distribution/))
 * tensorflow-gpu 1.14.0 (`pip install tensorflow-gpu==1.14.0`)
-* [miditoolkit](https://github.com/wayne391/miditoolkit) (`pip install miditoolkit`)
+* [miditoolkit](https://github.com/YatingMusic/miditoolkit) (`pip install miditoolkit`)
 
 ### Download Pre-trained Checkpoints
 We provide two pre-trained checkpoints for generating samples.
