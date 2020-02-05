@@ -17,6 +17,8 @@ def main():
     # if you use "REMI-tempo-chord-checkpoint" for the pre-trained checkpoint
     # please name your output folder as something with "chord"
     # for example: my-love-chord, cute-doggy-chord, ...
+    # if use "REMI-tempo-checkpoint"
+    # for example: my-love, cute-doggy, ...
     ####################################
     output_checkpoint_folder = 'REMI-finetune' # your decision
     if not os.path.exists(output_checkpoint_folder):
