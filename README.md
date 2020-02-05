@@ -1,5 +1,5 @@
 # REMI
-Authors: [Yu-Siang Huang](https://remyhuang.github.io/), [Yi-Hsuan Yang](http://mac.citi.sinica.edu.tw/~yang/) and [Wen-Yi Hsiao](https://github.com/wayne391/)
+Authors: [Yu-Siang Huang](https://remyhuang.github.io/), [Yi-Hsuan Yang](http://mac.citi.sinica.edu.tw/~yang/)
 
 [**Paper (arXiv)**](https://arxiv.org/abs/2002.00212) | [**Blog**](https://ailabs.tw/human-interaction/pop-music-transformer/) | [**Audio demo (Google Drive)**](https://drive.google.com/open?id=1LzPBjHPip4S0CBOLquk5CNapvXSfys54)
 
@@ -40,7 +40,9 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 def main():
     # declare model
-    model = PopMusicTransformer(checkpoint='REMI-tempo-checkpoint')
+    model = PopMusicTransformer(
+        checkpoint='REMI-tempo-checkpoint',
+        is_training=False)
     # generate from scratch
     model.generate(
         n_target_bar=16,
@@ -72,6 +74,9 @@ We strongly recommend using DAW (e.g., Logic Pro) to open/play the generated MID
 #### 2. What is the function of the inputs "temperature" and "topk"?
 It is the temperature-controlled stochastic sampling methods are used for generating text from a trained language model. You can find out more details in the reference paper [CTRL: 4.1 Sampling](https://einstein.ai/presentations/ctrl.pdf).
 > It is worth noting that the sampling method used for generation is very critical to the quality of the output, which is a research topic worthy of further exploration. 
+
+#### 3. How to finetune with my personal MIDI data?
+Please see [issue/Training on custom MIDI corpus](https://github.com/YatingMusic/remi/issues/2)
 
 ## Acknowledgement
 The content of `modules.py` comes from the [kimiyoung/transformer-xl](https://github.com/kimiyoung/transformer-xl) repository.
