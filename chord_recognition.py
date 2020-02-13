@@ -31,7 +31,7 @@ class MIDIChord(object):
                                   'dom': [1, 3, 6, 8, 11]}
 
     def note2pianoroll(self, notes, max_tick, ticks_per_beat):
-        return miditoolkit.pianoroll.parser.get_pianoroll(
+        return miditoolkit.pianoroll.parser.notes2pianoroll(
                 note_stream_ori=notes,
                 max_tick=max_tick,
                 ticks_per_beat=ticks_per_beat)
