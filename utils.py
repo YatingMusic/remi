@@ -216,97 +216,91 @@ def word_to_event(words, word2event):
 def write_midi(words, word2event, output_path, prompt_path=None):
     events = word_to_event(words, word2event)
     # get downbeat and note (no time)
-    flag = 0
     temp_notes = []
     temp_chords = []
     temp_tempos = []
     for i in range(len(events)-3):
-        if events[i].name == 'Bar':
-            flag = 1
-        if flag:
-            if events[i].name == 'Position' and \
-                events[i+1].name == 'Note Velocity' and \
-                events[i+2].name == 'Note On' and \
-                events[i+3].name == 'Note Duration':
-                # start time and end time from position
-                position = int(events[i].value.split('/')[0]) - 1
-                # velocity
-                index = int(events[i+1].value)
-                velocity = int(DEFAULT_VELOCITY_BINS[index])
-                # pitch
-                pitch = int(events[i+2].value)
-                # duration
-                index = int(events[i+3].value)
-                duration = DEFAULT_DURATION_BINS[index]
-                # adding
-                temp_notes.append([position, velocity, pitch, duration])
-            elif events[i].name == 'Position' and events[i+1].name == 'Chord':
-                position = int(events[i].value.split('/')[0]) - 1
-                temp_chords.append([position, events[i+1].value])
-            elif events[i].name == 'Position' and \
-                events[i+1].name == 'Tempo Class' and \
-                events[i+2].name == 'Tempo Value':
-                position = int(events[i].value.split('/')[0]) - 1
-                if events[i+1].value == 'slow':
-                    tempo = DEFAULT_TEMPO_INTERVALS[0].start + int(events[i+2].value)
-                elif events[i+1].value == 'mid':
-                    tempo = DEFAULT_TEMPO_INTERVALS[1].start + int(events[i+2].value)
-                elif events[i+1].value == 'fast':
-                    tempo = DEFAULT_TEMPO_INTERVALS[2].start + int(events[i+2].value)
-                temp_tempos.append([position, tempo])
+        if events[i].name == 'Bar' and i > 0:
+            temp_notes.append('Bar')
+            temp_chords.append('Bar')
+            temp_tempos.append('Bar')
+        elif events[i].name == 'Position' and \
+            events[i+1].name == 'Note Velocity' and \
+            events[i+2].name == 'Note On' and \
+            events[i+3].name == 'Note Duration':
+            # start time and end time from position
+            position = int(events[i].value.split('/')[0]) - 1
+            # velocity
+            index = int(events[i+1].value)
+            velocity = int(DEFAULT_VELOCITY_BINS[index])
+            # pitch
+            pitch = int(events[i+2].value)
+            # duration
+            index = int(events[i+3].value)
+            duration = DEFAULT_DURATION_BINS[index]
+            # adding
+            temp_notes.append([position, velocity, pitch, duration])
+        elif events[i].name == 'Position' and events[i+1].name == 'Chord':
+            position = int(events[i].value.split('/')[0]) - 1
+            temp_chords.append([position, events[i+1].value])
+        elif events[i].name == 'Position' and \
+            events[i+1].name == 'Tempo Class' and \
+            events[i+2].name == 'Tempo Value':
+            position = int(events[i].value.split('/')[0]) - 1
+            if events[i+1].value == 'slow':
+                tempo = DEFAULT_TEMPO_INTERVALS[0].start + int(events[i+2].value)
+            elif events[i+1].value == 'mid':
+                tempo = DEFAULT_TEMPO_INTERVALS[1].start + int(events[i+2].value)
+            elif events[i+1].value == 'fast':
+                tempo = DEFAULT_TEMPO_INTERVALS[2].start + int(events[i+2].value)
+            temp_tempos.append([position, tempo])
     # get specific time for notes
     ticks_per_beat = DEFAULT_RESOLUTION
     ticks_per_bar = DEFAULT_RESOLUTION * 4 # assume 4/4
     notes = []
-    last_position = -1
     current_bar = 0
     for note in temp_notes:
-        position, velocity, pitch, duration = note
-        if position < last_position:
+        if note == 'Bar':
             current_bar += 1
-        # position (start time)
-        current_bar_st = current_bar * ticks_per_bar
-        current_bar_et = (current_bar + 1) * ticks_per_bar
-        flags = np.linspace(current_bar_st, current_bar_et, DEFAULT_FRACTION, endpoint=False, dtype=int)
-        st = flags[position]
-        # duration (end time)
-        et = st + duration
-        notes.append(miditoolkit.Note(velocity, pitch, st, et))
-        # record bar
-        last_position = position
-    # get specific time for chords
-    if len(temp_chords) > 0:
-        chords = []
-        last_position = -1
-        current_bar = 0
-        for chord in temp_chords:
-            position, value = chord
-            if position <= last_position:
-                current_bar += 1
+        else:
+            position, velocity, pitch, duration = note
             # position (start time)
             current_bar_st = current_bar * ticks_per_bar
             current_bar_et = (current_bar + 1) * ticks_per_bar
             flags = np.linspace(current_bar_st, current_bar_et, DEFAULT_FRACTION, endpoint=False, dtype=int)
             st = flags[position]
-            chords.append([st, value])
-            # record bar
-            last_position = position
+            # duration (end time)
+            et = st + duration
+            notes.append(miditoolkit.Note(velocity, pitch, st, et))
+    # get specific time for chords
+    if len(temp_chords) > 0:
+        chords = []
+        current_bar = 0
+        for chord in temp_chords:
+            if chord == 'Bar':
+                current_bar += 1
+            else:
+                position, value = chord
+                # position (start time)
+                current_bar_st = current_bar * ticks_per_bar
+                current_bar_et = (current_bar + 1) * ticks_per_bar
+                flags = np.linspace(current_bar_st, current_bar_et, DEFAULT_FRACTION, endpoint=False, dtype=int)
+                st = flags[position]
+                chords.append([st, value])
     # get specific time for tempos
     tempos = []
-    last_position = -1
     current_bar = 0
     for tempo in temp_tempos:
-        position, value = tempo
-        if position < last_position:
+        if tempo == 'Bar':
             current_bar += 1
-        # position (start time)
-        current_bar_st = current_bar * ticks_per_bar
-        current_bar_et = (current_bar + 1) * ticks_per_bar
-        flags = np.linspace(current_bar_st, current_bar_et, DEFAULT_FRACTION, endpoint=False, dtype=int)
-        st = flags[position]
-        tempos.append([int(st), value])
-        # record bar
-        last_position = position
+        else:
+            position, value = tempo
+            # position (start time)
+            current_bar_st = current_bar * ticks_per_bar
+            current_bar_et = (current_bar + 1) * ticks_per_bar
+            flags = np.linspace(current_bar_st, current_bar_et, DEFAULT_FRACTION, endpoint=False, dtype=int)
+            st = flags[position]
+            tempos.append([int(st), value])
     # write
     if prompt_path:
         midi = miditoolkit.midi.parser.MidiFile(prompt_path)
