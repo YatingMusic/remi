@@ -80,4 +80,4 @@ Please see [issue/Training on custom MIDI corpus](https://github.com/YatingMusic
 
 ## Acknowledgement
 - The content of `modules.py` comes from the [kimiyoung/transformer-xl](https://github.com/kimiyoung/transformer-xl) repository.
-- Thanks [@viberthio](https://github.com/vibertthio) for the awesome online interactive demo.
+- Thanks [@vibertthio](https://github.com/vibertthio) for the awesome online interactive demo.
