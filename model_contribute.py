@@ -68,6 +68,8 @@ class PopMusicTransformer(object):
             self.mem_len = 512
         else:
             self.mem_len = 6400
+
+        self.rezero = True
         self.n_layer = 12
         self.d_embed = 512
 
@@ -126,6 +128,7 @@ class PopMusicTransformer(object):
                 proj_initializer=proj_initializer,
                 is_training=self.is_training,
                 mem_len=self.mem_len,
+                rezero=self.rezero,
                 cutoffs=[],
                 div_val=-1,
                 tie_projs=[],
