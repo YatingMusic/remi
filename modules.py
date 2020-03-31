@@ -1,4 +1,5 @@
 import tensorflow as tf
+import shuffle_exchange
 
 def embedding_lookup(lookup_table, x):
     return tf.compat.v1.nn.embedding_lookup(lookup_table, x)
@@ -45,9 +46,8 @@ def positional_embedding(pos_seq, inv_freq, bsz=None):
         return pos_emb[:, None, :]
 
 
-def positionwise_FF(inp, d_model, d_inner, dropout, kernel_initializer,
+def positionwise_FF(inp, d_model, d_inner, dropout, kernel_initializer,rezero_alpha = 0, rezero = True,
                     scope='ff', is_training=True):
-    output = inp
     with tf.compat.v1.variable_scope(scope):
         output = tf.keras.layers.Dense(d_inner, activation=tf.nn.relu, 
                                        kernel_initializer=kernel_initializer, name='layer_1')(inp)
@@ -55,7 +55,10 @@ def positionwise_FF(inp, d_model, d_inner, dropout, kernel_initializer,
         output = tf.keras.layers.Dense(d_model, activation=tf.nn.relu, 
                                        kernel_initializer=kernel_initializer, name='layer_2')(output)
         output = tf.keras.layers.Dropout(dropout, name='drop_2')(output, training=is_training)
-        output = tf.keras.layers.LayerNormalization(axis=-1)(output + inp)
+        if rezero:
+            output = rezero_alpha * output + inp
+        else:
+            output = tf.keras.layers.LayerNormalization(axis = -1)(output + inp)
     return output
 
 
@@ -92,7 +95,7 @@ def rel_shift(x):
 
 def rel_multihead_attn(w, r, r_w_bias, r_r_bias, attn_mask, mems, d_model,
                        n_head, d_head, dropout, dropatt, is_training,
-                       kernel_initializer, scope='rel_attn'):
+                       kernel_initializer, rezero_alpha = 0, rezero = True, scope='rel_attn'):
     scale = 1 / (d_head ** 0.5)
     with tf.compat.v1.variable_scope(scope):
         qlen = tf.shape(w)[0]
@@ -129,6 +132,7 @@ def rel_multihead_attn(w, r, r_w_bias, r_r_bias, attn_mask, mems, d_model,
         attn_score = attn_score * (1 - attn_mask_t) - 1e30 * attn_mask_t
 
         attn_prob = tf.nn.softmax(attn_score, 1)
+
         attn_prob = tf.keras.layers.Dropout(dropatt)(attn_prob, training=is_training)
 
         attn_vec = tf.einsum('ijbn,jbnd->ibnd', attn_prob, w_head_v)
@@ -138,7 +142,10 @@ def rel_multihead_attn(w, r, r_w_bias, r_r_bias, attn_mask, mems, d_model,
         attn_out = tf.keras.layers.Dense(d_model, use_bias=False, 
                                          kernel_initializer=kernel_initializer, name='o')(attn_vec)
         attn_out = tf.keras.layers.Dropout(dropout)(attn_out, training=is_training)
-        output = tf.keras.layers.LayerNormalization(axis=-1)(attn_out + w)
+        if rezero:
+            output = attn_out * rezero_alpha + w
+        else:
+            output = tf.keras.layers.LayerNormalization(axis = -1)(attn_out + w)
         return output
 
 
@@ -149,6 +156,7 @@ def transformer(dec_inp, target, mems, n_token, n_layer, d_model, d_embed,
                 same_length=False, clamp_len=-1,
                 input_perms=None, target_perms=None, head_target=None,
                 untie_r=False, proj_same_dim=True,
+                rezero = True,
                 scope='transformer'):
     """
     cutoffs: a list of python int. Cutoffs for adaptive softmax.
@@ -199,6 +207,10 @@ def transformer(dec_inp, target, mems, n_token, n_layer, d_model, d_embed,
             new_mems.append(_cache_mem(output, mems[i], mem_len))
 
             with tf.compat.v1.variable_scope('layer_{}'.format(i)):
+                if rezero:
+                    rezero_alpha = tf.compat.v1.get_variable('alpha', [1], initializer=tf.zeros_initializer())
+                else:
+                    rezero_alpha = 0
                 output = rel_multihead_attn(
                     w=output,
                     r=pos_emb,
@@ -212,7 +224,9 @@ def transformer(dec_inp, target, mems, n_token, n_layer, d_model, d_embed,
                     dropout=dropout,
                     dropatt=dropatt,
                     is_training=is_training,
-                    kernel_initializer=initializer)
+                    kernel_initializer=initializer,
+                rezero=rezero,
+                rezero_alpha = rezero_alpha)
 
                 output = positionwise_FF(
                     inp=output,
@@ -220,7 +234,9 @@ def transformer(dec_inp, target, mems, n_token, n_layer, d_model, d_embed,
                     d_inner=d_inner,
                     dropout=dropout,
                     kernel_initializer=initializer,
-                    is_training=is_training)
+                    is_training=is_training,
+                rezero=rezero,
+                rezero_alpha=rezero_alpha)
 
         output = tf.keras.layers.Dropout(dropout)(output, training=is_training)
 
