@@ -7,18 +7,23 @@ def main():
     model = PopMusicTransformer(
         checkpoint='REMI-tempo-checkpoint',
         is_training=False)
+    
     # generate from scratch
     model.generate(
         n_target_bar=16,
         temperature=1.2,
+        topk=5,
         output_path='./result/from_scratch.midi',
         prompt=None)
+    
     # generate continuation
     model.generate(
         n_target_bar=16,
         temperature=1.2,
+        topk=5
         output_path='./result/continuation.midi',
         prompt='./data/evaluation/000.midi')
+    
     # close model
     model.close()
 
