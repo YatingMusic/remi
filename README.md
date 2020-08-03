@@ -8,7 +8,7 @@ REMI, which stands for `REvamped MIDI-derived events`, is a new event representa
 ## Citation
 ```
 @article{huang2020pop,
-  title={Pop music transformer: Generating music with rhythm and harmony},
+  title={Pop music transformer: Beat-based modeling and generation of expressive pop piano compositions},
   author={Huang, Yu-Siang and Yang, Yi-Hsuan},
   journal={arXiv preprint arXiv:2002.00212},
   year={2020}
@@ -43,6 +43,7 @@ def main():
     model = PopMusicTransformer(
         checkpoint='REMI-tempo-checkpoint',
         is_training=False)
+        
     # generate from scratch
     model.generate(
         n_target_bar=16,
@@ -50,6 +51,7 @@ def main():
         topk=5,
         output_path='./result/from_scratch.midi',
         prompt=None)
+        
     # generate continuation
     model.generate(
         n_target_bar=16,
@@ -57,6 +59,7 @@ def main():
         topk=5,
         output_path='./result/continuation.midi',
         prompt='./data/evaluation/000.midi')
+        
     # close model
     model.close()
 
