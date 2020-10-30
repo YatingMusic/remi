@@ -7,11 +7,19 @@ REMI, which stands for `REvamped MIDI-derived events`, is a new event representa
 
 ## Citation
 ```
-@inproceedings{huang2020pop,
-  title={Pop music transformer: Beat-based modeling and generation of expressive pop piano compositions},
-  author={Huang, Yu-Siang and Yang, Yi-Hsuan},
-  booktitle={Proceedings of the 28th ACM international conference on Multimedia},
-  year={2020}
+@inproceedings{10.1145/3394171.3413671,
+  author = {Huang, Yu-Siang and Yang, Yi-Hsuan},
+  title = {Pop Music Transformer: Beat-Based Modeling and Generation of Expressive Pop Piano Compositions},
+  year = {2020},
+  isbn = {9781450379885},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3394171.3413671},
+  doi = {10.1145/3394171.3413671},
+  pages = {1180–1188},
+  numpages = {9},
+  location = {Seattle, WA, USA},
+  series = {MM '20}
 }
 ```
 
