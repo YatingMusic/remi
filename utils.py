@@ -31,11 +31,12 @@ def read_items(file_path):
     midi_obj = miditoolkit.midi.parser.MidiFile(file_path)
     # note
     notes = []
+    note_items = []
     for index, instrument in enumerate(midi_obj.instruments):
         for note in instrument.notes:
             notes.append({'note': note, 'instrument': 128 if instrument.is_drum else instrument.program})
 
-    notes.sort(key=lambda x: (x['note'].instrument, x['note'].start, x['note'].pitch))
+    notes.sort(key=lambda x: (x['note'].start, x['instrument'], x['note'].pitch))
     for note in notes:
         note_items.append(Item(
             name='Note', 
