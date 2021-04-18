@@ -6,43 +6,71 @@ import pickle
 import utils
 import time
 
+
 class PopMusicTransformer(object):
     ########################################
     # initialize
     ########################################
-    def __init__(self, checkpoint, is_training=False):
+    def __init__(self,
+                 checkpoint_path,
+                 dictionary_path,
+                 is_training=False,
+                 x_len=512,
+                 mem_len=512,
+                 n_layer=12,
+                 d_embed=512,
+                 d_model=512,
+                 dropout=0.1,
+                 n_head=8,
+                 d_head=None,
+                 d_ff=2048,
+                 learning_rate=0.0002,
+                 use_chords=True,
+                 group_size=5
+                 ):
+        # Reset tensorflow default graph
+        tf.reset_default_graph()
+
         # load dictionary
-        self.dictionary_path = '{}/dictionary.pkl'.format(checkpoint)
+        self.dictionary_path = dictionary_path
         self.event2word, self.word2event = pickle.load(open(self.dictionary_path, 'rb'))
+
         # model settings
-        self.x_len = 512
-        self.mem_len = 512
-        self.n_layer = 12
-        self.d_embed = 512
-        self.d_model = 512
-        self.dropout = 0.1
-        self.n_head = 8
-        self.d_head = self.d_model // self.n_head
-        self.d_ff = 2048
+        self.x_len = x_len
+        self.mem_len = mem_len
+        self.n_layer = n_layer
+        self.d_embed = d_embed
+        self.d_model = d_model
+        self.dropout = dropout
+        self.n_head = n_head
+        if d_head is None:
+            self.d_head = self.d_model // self.n_head
+        else:
+            self.d_head = d_head
+        self.d_ff = d_ff
         self.n_token = len(self.event2word)
-        self.learning_rate = 0.0002
+        self.learning_rate = learning_rate
         # load model
         self.is_training = is_training
         if self.is_training:
             self.batch_size = 4
         else:
             self.batch_size = 1
-        self.checkpoint_path = '{}/model'.format(checkpoint)
-        self.load_model()
+        self.checkpoint_path = checkpoint_path
+        self.use_chords = use_chords
+        self.group_size = group_size
+        if self.checkpoint_path:
+            self.create_model()
 
     ########################################
-    # load model
+    # create model
     ########################################
-    def load_model(self):
+    def create_model(self):
         # placeholders
         self.x = tf.compat.v1.placeholder(tf.int32, shape=[self.batch_size, None])
         self.y = tf.compat.v1.placeholder(tf.int32, shape=[self.batch_size, None])
-        self.mems_i = [tf.compat.v1.placeholder(tf.float32, [self.mem_len, self.batch_size, self.d_model]) for _ in range(self.n_layer)]
+        self.mems_i = [tf.compat.v1.placeholder(tf.float32, [self.mem_len, self.batch_size, self.d_model]) for _ in
+                       range(self.n_layer)]
         # model
         self.global_step = tf.compat.v1.train.get_or_create_global_step()
         initializer = tf.compat.v1.initializers.random_normal(stddev=0.02, seed=None)
@@ -96,7 +124,8 @@ class PopMusicTransformer(object):
         config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
         config.gpu_options.allow_growth = True
         self.sess = tf.compat.v1.Session(config=config)
-        self.saver.restore(self.sess, self.checkpoint_path)
+        if self.checkpoint_path is not None:
+            self.saver.restore(self.sess, self.checkpoint_path)
 
     ########################################
     # temperature sampling
@@ -122,7 +151,7 @@ class PopMusicTransformer(object):
         note_items, tempo_items = utils.read_items(input_path)
         note_items = utils.quantize_items(note_items)
         max_time = note_items[-1].end
-        if 'chord' in self.checkpoint_path:
+        if self.use_chords:
             chord_items = utils.extract_chords(note_items)
             items = chord_items + tempo_items + note_items
         else:
@@ -161,7 +190,8 @@ class PopMusicTransformer(object):
                     ws.append(np.random.choice(tempo_values))
                 words.append(ws)
         # initialize mem
-        batch_m = [np.zeros((self.mem_len, self.batch_size, self.d_model), dtype=np.float32) for _ in range(self.n_layer)]
+        batch_m = [np.zeros((self.mem_len, self.batch_size, self.d_model), dtype=np.float32) for _ in
+                   range(self.n_layer)]
         # generate
         original_length = len(words[0])
         initial_flag = 1
@@ -187,7 +217,7 @@ class PopMusicTransformer(object):
             # sampling
             _logit = _logits[-1, 0]
             word = self.temperature_sampling(
-                logits=_logit, 
+                logits=_logit,
                 temperature=temperature,
                 topk=topk)
             words[0].append(word)
@@ -238,7 +268,6 @@ class PopMusicTransformer(object):
                         print('something is wrong! {}'.format(e))
             all_words.append(words)
         # to training data
-        self.group_size = 5
         segments = []
         for words in all_words:
             pairs = []
@@ -252,24 +281,38 @@ class PopMusicTransformer(object):
                 data = pairs[i:i+self.group_size]
                 if len(data) == self.group_size:
                     segments.append(data)
+
+        for words in all_words:
+            pairs = []
+            for i in range(len(words) - 1, self.x_len, -self.x_len):
+                x = words[i-self.x_len-1:i-1]
+                y = words[i-self.x_len:i]
+                pairs.append([x, y])
+            pairs = np.array(pairs[::-1])
+            # abandon the last
+            for i in np.arange(0, len(pairs)-self.group_size, self.group_size*2):
+                data = pairs[i:i+self.group_size]
+                if len(data) == self.group_size:
+                    segments.append(data)
         segments = np.array(segments)
         return segments
 
     ########################################
     # finetune
     ########################################
-    def finetune(self, training_data, output_checkpoint_folder):
+    def finetune(self, training_data, output_checkpoint_folder, epochs=200, stop_loss=None):
         # shuffle
         index = np.arange(len(training_data))
         np.random.shuffle(index)
         training_data = training_data[index]
         num_batches = len(training_data) // self.batch_size
         st = time.time()
-        for e in range(200):
+        for e in range(epochs):
             total_loss = []
             for i in range(num_batches):
-                segments = training_data[self.batch_size*i:self.batch_size*(i+1)]
-                batch_m = [np.zeros((self.mem_len, self.batch_size, self.d_model), dtype=np.float32) for _ in range(self.n_layer)]
+                segments = training_data[self.batch_size * i:self.batch_size * (i + 1)]
+                batch_m = [np.zeros((self.mem_len, self.batch_size, self.d_model), dtype=np.float32) for _ in
+                           range(self.n_layer)]
                 for j in range(self.group_size):
                     batch_x = segments[:, j, 0, :]
                     batch_y = segments[:, j, 1, :]
@@ -278,13 +321,15 @@ class PopMusicTransformer(object):
                     for m, m_np in zip(self.mems_i, batch_m):
                         feed_dict[m] = m_np
                     # run
-                    _, gs_, loss_, new_mem_ = self.sess.run([self.train_op, self.global_step, self.avg_loss, self.new_mem], feed_dict=feed_dict)
+                    _, gs_, loss_, new_mem_ = self.sess.run(
+                        [self.train_op, self.global_step, self.avg_loss, self.new_mem], feed_dict=feed_dict)
                     batch_m = new_mem_
                     total_loss.append(loss_)
-                    print('>>> Epoch: {}, Step: {}, Loss: {:.5f}, Time: {:.2f}'.format(e, gs_, loss_, time.time()-st))
-            self.saver.save(self.sess, '{}/model-{:03d}-{:.3f}'.format(output_checkpoint_folder, e, np.mean(total_loss)))
+                    print('>>> Epoch: {}, Step: {}, Loss: {:.5f}, Time: {:.2f}'.format(e, gs_, loss_, time.time() - st))
+            self.saver.save(self.sess,
+                            '{}/{}/model'.format(output_checkpoint_folder, e))
             # stop
-            if np.mean(total_loss) <= 0.1:
+            if stop_loss is not None and np.mean(total_loss) <= stop_loss:
                 break
 
     ########################################

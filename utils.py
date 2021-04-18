@@ -14,31 +14,36 @@ DEFAULT_RESOLUTION = 480
 
 # define "Item" for general storage
 class Item(object):
-    def __init__(self, name, start, end, velocity, pitch):
+    def __init__(self, name, start, end, velocity, pitch, instrument=None):
         self.name = name
         self.start = start
         self.end = end
         self.velocity = velocity
         self.pitch = pitch
+        self.instrument = instrument
 
     def __repr__(self):
-        return 'Item(name={}, start={}, end={}, velocity={}, pitch={})'.format(
-            self.name, self.start, self.end, self.velocity, self.pitch)
+        return 'Item(name={}, start={}, end={}, velocity={}, pitch={}, instrument={})'.format(
+            self.name, self.start, self.end, self.velocity, self.pitch, self.instrument)
 
 # read notes and tempo changes from midi (assume there is only one track)
 def read_items(file_path):
     midi_obj = miditoolkit.midi.parser.MidiFile(file_path)
     # note
-    note_items = []
-    notes = midi_obj.instruments[0].notes
-    notes.sort(key=lambda x: (x.start, x.pitch))
+    notes = []
+    for index, instrument in enumerate(midi_obj.instruments):
+        for note in instrument.notes:
+            notes.append({'note': note, 'instrument': 128 if instrument.is_drum else instrument.program})
+
+    notes.sort(key=lambda x: (x['note'].instrument, x['note'].start, x['note'].pitch))
     for note in notes:
         note_items.append(Item(
             name='Note', 
-            start=note.start, 
-            end=note.end, 
-            velocity=note.velocity, 
-            pitch=note.pitch))
+            start=note['note'].start,
+            end=note['note'].end,
+            velocity=note['note'].velocity,
+            instrument=note['instrument'],
+            pitch=note['note'].pitch))
     note_items.sort(key=lambda x: x.start)
     # tempo
     tempo_items = []
@@ -173,6 +178,12 @@ def item2event(groups):
                     time=item.start,
                     value=index,
                     text='{}/{}'.format(duration, DEFAULT_DURATION_BINS[index])))
+                # instrument
+                events.append(Event(
+                    name='Instrument',
+                    time=item.start,
+                    value=item.instrument,
+                    text='{}'.format(item.instrument)))
             elif item.name == 'Chord':
                 events.append(Event(
                     name='Chord', 
@@ -227,7 +238,9 @@ def write_midi(words, word2event, output_path, prompt_path=None):
         elif events[i].name == 'Position' and \
             events[i+1].name == 'Note Velocity' and \
             events[i+2].name == 'Note On' and \
-            events[i+3].name == 'Note Duration':
+            events[i+3].name == 'Note Duration' and \
+            events[i+4].name == 'Instrument':
+
             # start time and end time from position
             position = int(events[i].value.split('/')[0]) - 1
             # velocity
@@ -238,8 +251,10 @@ def write_midi(words, word2event, output_path, prompt_path=None):
             # duration
             index = int(events[i+3].value)
             duration = DEFAULT_DURATION_BINS[index]
+            # instrument
+            instrument = int(events[i+4].value)
             # adding
-            temp_notes.append([position, velocity, pitch, duration])
+            temp_notes.append([position, velocity, pitch, duration, instrument])
         elif events[i].name == 'Position' and events[i+1].name == 'Chord':
             position = int(events[i].value.split('/')[0]) - 1
             temp_chords.append([position, events[i+1].value])
@@ -330,19 +345,24 @@ def write_midi(words, word2event, output_path, prompt_path=None):
     else:
         midi = miditoolkit.midi.parser.MidiFile()
         midi.ticks_per_beat = DEFAULT_RESOLUTION
-        # write instrument
-        inst = miditoolkit.midi.containers.Instrument(0, is_drum=False)
-        inst.notes = notes
-        midi.instruments.append(inst)
+
         # write tempo
         tempo_changes = []
         for st, bpm in tempos:
             tempo_changes.append(miditoolkit.midi.containers.TempoChange(bpm, st))
         midi.tempo_changes = tempo_changes
+
         # write chord into marker
         if len(temp_chords) > 0:
             for c in chords:
                 midi.markers.append(
                     miditoolkit.midi.containers.Marker(text=c[1], time=c[0]))
+
+        for instrument, instrument_notes in notes.items():
+            program = 0 if instrument == 128 else instrument
+            is_drum = True if instrument == 128 else False
+            inst = miditoolkit.midi.containers.Instrument(program, is_drum=is_drum)
+            inst.notes = instrument_notes
+            midi.instruments.append(inst)
     # write
     midi.dump(output_path)
