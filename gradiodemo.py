@@ -37,15 +37,19 @@ def inference(midi):
     return './result/continuation.midi'
         
 
-title = "Remi"
-description = "demo for Remi. To use it, simply upload your midi file, or click one of the examples to load them. Read more at the links below."
-article = "<p style='text-align: center'><a href='https://arxiv.org/abs/2104.05703'>Adversarial Open Domain Adaption for Sketch-to-Photo Synthesis</a> | <a href='https://github.com/Mukosame/Anime2Sketch'>Github Repo</a></p>"
+title = "Pop Music Transformer"
+description = "demo for Pop Music Transformer. To use it, simply upload your midi file, or click one of the examples to load them. Read more at the links below."
+article = "<p style='text-align: center'><a href='https://arxiv.org/abs/2002.00212'>Pop Music Transformer: Beat-based Modeling and Generation of Expressive Pop Piano Compositions</a> | <a href='https://github.com/YatingMusic/remi'>Github Repo</a></p>"
 
+examples = [
+    ['input.midi']
+]
 gr.Interface(
     inference, 
     gr.inputs.File(label="Input Midi"), 
     gr.outputs.File(label="Output Midi"),
     title=title,
     description=description,
-    article=article
+    article=article,
+    examples=examples
     ).launch()
